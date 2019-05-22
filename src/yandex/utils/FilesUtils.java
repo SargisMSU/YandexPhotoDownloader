@@ -1,34 +1,24 @@
 package yandex.utils;
 
-import okhttp3.*;
-import org.apache.http.Header;
 import org.apache.http.HttpResponse;
-import org.apache.http.StatusLine;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
-import org.apache.http.protocol.HttpContext;
 
 import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.channels.Channels;
-import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.concurrent.CountDownLatch;
 
 public class FilesUtils {
 
     public static void download(HashMap<String, Integer> errors, CloseableHttpAsyncClient client, String url,
                                 String fileName, CountDownLatch countDownLatch) throws URISyntaxException {
-        //HttpContext context = HttpClientContext.create();
         client.execute(new HttpGet(new URI(url)), new FutureCallback<HttpResponse>() {
             @Override
             public void completed(HttpResponse httpResponse) {

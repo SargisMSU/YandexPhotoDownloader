@@ -105,21 +105,6 @@ public class Main extends Application {
         btn.setDisable(false);
     }
 
-    /*public static void main(String[] args) throws KeyStoreException, NoSuchAlgorithmException, URISyntaxException, KeyManagementException {
-
-        TrustStrategy acceptingTrustStrategy = (certificate, authType) -> true;
-        SSLContext sslContext = SSLContexts.custom()
-                .loadTrustMaterial(null, acceptingTrustStrategy).build();
-        CloseableHttpAsyncClient client = HttpAsyncClients.custom()
-                .setSSLHostnameVerifier(SSLConnectionSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER)
-                .disableAuthCaching()
-                .setSSLContext(sslContext).build();
-        client.start();
-
-        FilesUtils.download(new HashMap<>(), client, "https://xelk.org/content/uploads/2019/02/cristianobarcaklasikodabatawa.jpg",
-                "TestFile.txt", new CountDownLatch(1));
-    }*/
-
     public static void main(String[] args) {
         try {
             Main.launch(args);
