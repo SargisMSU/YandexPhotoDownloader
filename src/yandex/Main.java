@@ -40,7 +40,9 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
 import java.util.*;
+import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -49,10 +51,28 @@ import static okhttp3.CipherSuite.*;
 public class Main extends Application {
 
     private CloseableHttpAsyncClient client;
-    private int count;
+    private Integer count, width, height;
     private String request, url;
     private ChromeDriver driver;
     private Button btn;
+
+    public static void main(String[] args) {
+        try {
+            Main.launch(args);
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(null, e.getStackTrace());
+            try {
+                PrintWriter pw = new PrintWriter(new File("errorMain.txt"));
+                e.printStackTrace(pw);
+                pw.close();
+            }
+            catch (IOException e1)
+            {
+                e1.printStackTrace();
+            }
+        }
+    }
 
     @Override
     public void start(Stage primaryStage) throws Exception{
@@ -81,6 +101,13 @@ public class Main extends Application {
         });
         primaryStage.show();
 
+        Settings params = new Settings("params.txt");
+        url = params.getUrl();
+        count = params.getCount();
+        width = params.getWidth();
+        height = params.getHeight();
+        request = params.getRequest();
+
         TrustStrategy acceptingTrustStrategy = (certificate, authType) -> true;
         SSLContext sslContext = SSLContexts.custom()
                 .loadTrustMaterial(null, acceptingTrustStrategy).build();
@@ -88,16 +115,12 @@ public class Main extends Application {
                 .setSSLHostnameVerifier(SSLConnectionSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER)
                 .disableAuthCaching()
                 .setDefaultRequestConfig(RequestConfig.custom()
-                    .setConnectTimeout(30000)
-                    .setConnectionRequestTimeout(30000)
+                    .setConnectTimeout(20000)
+                    .setConnectionRequestTimeout(20000)
                     .build())
                 .setSSLContext(sslContext).build();
         client.start();
 
-        Settings params = new Settings("params.txt");
-        url = params.getUrl();
-        count = params.getCount();
-        request = params.getRequest();
 
         SeleniumHelper seleniumHelper = new SeleniumHelper();
         seleniumHelper.openURL(url);
@@ -105,28 +128,10 @@ public class Main extends Application {
         btn.setDisable(false);
     }
 
-    public static void main(String[] args) {
-        try {
-            Main.launch(args);
-        } catch (Exception e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(null, e.getStackTrace());
-            try {
-                PrintWriter pw = new PrintWriter(new File("errorMain.txt"));
-                e.printStackTrace(pw);
-                pw.close();
-            }
-            catch (IOException e1)
-            {
-                e1.printStackTrace();
-            }
-        }
-    }
-
     private void onClick() {
 
         new Thread(() -> {
-            ArrayList<String> urlsAll = HtmlParser.parsePhotosURL(driver, request, count);
+            LinkedList<String> urlsAll = HtmlParser.parsePhotosURL(driver, request, count, width < height);
             driver.quit();
 
             String directory = FilesUtils.createDirectory(request);
@@ -134,14 +139,14 @@ public class Main extends Application {
             AtomicInteger k = new AtomicInteger();
             HashMap<String, Integer> errorsMap = new HashMap<>();
             HashSet<String> unavailableUrls = new HashSet<>();
-            ArrayList<String> urlsTemp = new ArrayList<>();
-            for (int i = 0; i < (count > urlsAll.size() ? urlsAll.size() : count); i++) {
-                urlsTemp.add(urlsAll.get(i));
-            }
+            LinkedList<String> urlsTemp = new LinkedList<>();
+
+            getNextUrls(urlsAll, urlsTemp);
             do {
-                CountDownLatch countDownLatch = new CountDownLatch(urlsTemp.size());
-                for (int i = 0; i < urlsTemp.size(); i++) {
-                    String urlSetK = urlsTemp.get(i);
+                int urlTempSize = urlsTemp.size();
+                CountDownLatch countDownLatch = new CountDownLatch(urlTempSize);
+                for (int i = 0; i < urlTempSize; i++) {
+                    String urlSetK = urlsTemp.removeFirst();
                     String currentName = directory + File.separator + "img" + k.getAndIncrement() + ".png";
                     try {
                         FilesUtils.download(errorsMap, client, urlSetK, currentName, countDownLatch);
@@ -172,9 +177,8 @@ public class Main extends Application {
                     e.printStackTrace();
                 }
 
-                urlsTemp.clear();
                 for (Map.Entry<String, Integer> entry: ((HashMap<String, Integer>)errorsMap.clone()).entrySet()){
-                    if (entry.getValue() > 2){
+                    if (entry.getValue() > 1){
                         errorsMap.remove(entry.getKey());
                         unavailableUrls.add(entry.getKey());
                         if (urlsAll.size() > count - 1 + unavailableUrls.size()) {
@@ -183,6 +187,7 @@ public class Main extends Application {
                     }
                 }
                 urlsTemp.addAll(errorsMap.keySet());
+                getNextUrls(urlsAll, urlsTemp);
             } while (!(errorsMap.size() == 0 && urlsTemp.size() == 0));
 
             if (unavailableUrls.size() > 0) {
@@ -192,9 +197,16 @@ public class Main extends Application {
                     e.printStackTrace();
                 }
             }
-
             Platform.exit();
             System.exit(0);
         }).start();
+    }
+
+    private void getNextUrls(LinkedList<String> allLinks, LinkedList<String> tempLinks){
+        int endIndex = Math.min(Math.min(count - tempLinks.size(), 20 - tempLinks.size()), allLinks.size());
+        for (int i = 0; i < endIndex; i++) {
+            tempLinks.add(allLinks.removeFirst());
+        }
+        count -= endIndex;
     }
 }

@@ -14,6 +14,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 
 public class FilesUtils {
 
@@ -43,6 +44,7 @@ public class FilesUtils {
                         errors.put(url, 1);
                     }
                 }
+                System.out.println("countDown " + fileName);
                 countDownLatch.countDown();
             }
 
@@ -56,6 +58,7 @@ public class FilesUtils {
                 }else {
                     errors.put(url, 1);
                 }
+                System.out.println("countDown " + fileName);
                 countDownLatch.countDown();
             }
 
