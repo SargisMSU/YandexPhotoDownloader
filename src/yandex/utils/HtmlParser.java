@@ -9,12 +9,14 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Stack;
 
 public class HtmlParser {
 
-    public static ArrayList<String> parsePhotosURL(ChromeDriver driver, String request, int count){
-        ArrayList<String> urls = new ArrayList<>();
+    public static LinkedList<String> parsePhotosURL(ChromeDriver driver, String request, int count, boolean mobileResolution){
+        LinkedList<String> urls = new LinkedList<>();
 
         //Искать только «request».
         try{
@@ -29,10 +31,16 @@ public class HtmlParser {
             }
         }catch (NoSuchElementException | InterruptedException ignored){
         }
-
-        int oldCountElements = 0;
-        while (urls.size() < count * 2) {
-            List<WebElement> elements = driver.findElements(By.xpath("/html/body/div[7]/div[1]/div[1]/div[1]/div[1]/div"));
+                                                                       //html/body/div[7]/div[1]/div[1]/div[1]/div/div/div[4]
+        int oldCountElements = 0;                                     //html/body/div[7]/div[1]/div[1]/div[1]/div/div
+        while (urls.size() < count * 2) {                             //html/body/div[7]/div[1]/div[1]/div[1]/div/div
+            List<WebElement> elements;
+            if (mobileResolution) {
+                elements = driver.findElements(By.xpath("/html/body/div[7]/div[1]/div[1]/div[1]/div/div/div/div"));
+            }else {
+                elements = driver.findElements(By.xpath("/html/body/div[7]/div[1]/div[1]/div[1]/div/div"));
+            }
+            System.out.println("elements.size() = " + elements.size());
             int startIndex = urls.size();
             for (int i = startIndex; i < elements.size(); i++) {
                 WebElement element = elements.get(i);
@@ -42,8 +50,12 @@ public class HtmlParser {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
+                //
+                if (element.getAttribute("class").equals("justifier__cols")){
+                    element = element.findElement(By.xpath("./div[1]"));
+                }
                 String json = element.getAttribute("data-bem");
-                if (json.startsWith("{")) {
+                 if (json != null && json.startsWith("{")) {
                     try {
                         JSONObject jsonObject = new JSONObject(json);
                         JSONObject serpItem = jsonObject.getJSONObject("serp-item");
