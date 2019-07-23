@@ -16,7 +16,6 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.CyclicBarrier;
 
 public class FilesUtils {
 
@@ -33,18 +32,11 @@ public class FilesUtils {
                         try {
                             Files.delete(Paths.get(fileName));
                         } catch (IOException e1) {
-                            e1.printStackTrace();
                         }
                         e.printStackTrace();
                     }
                 }else {
-                    System.out.println("Unavailable url: " + url);
-                    if (errors.containsKey(url)){
-                        Integer oldCount = errors.get(url);
-                        errors.put(url, oldCount + 1);
-                    }else {
-                        errors.put(url, 1);
-                    }
+                    onFailed(url, errors);
                 }
                 System.out.println("countDown " + fileName);
                 countDownLatch.countDown();
@@ -52,14 +44,8 @@ public class FilesUtils {
 
             @Override
             public void failed(Exception e) {
-                System.out.println("Failed url: " + url);
                 e.printStackTrace();
-                if (errors.containsKey(url)){
-                    Integer oldCount = errors.get(url);
-                    errors.put(url, oldCount + 1);
-                }else {
-                    errors.put(url, 1);
-                }
+                onFailed(url, errors);
                 System.out.println("countDown " + fileName);
                 countDownLatch.countDown();
             }
@@ -87,13 +73,7 @@ public class FilesUtils {
                 e.printStackTrace();
             }
         } else {
-            System.out.println("Unavailable url: " + url);
-            if (errors.containsKey(url)) {
-                Integer oldCount = errors.get(url);
-                errors.put(url, oldCount + 1);
-            } else {
-                errors.put(url, 1);
-            }
+            onFailed(url, errors);
         }
         System.out.println("countDown " + fileName);
         countDownLatch.countDown();
@@ -105,5 +85,15 @@ public class FilesUtils {
         File dir = new File(name);
         dir.mkdir();
         return name;
+    }
+
+    public static void onFailed(String url, HashMap<String, Integer> errors) {
+        System.out.println("Unavailable url: " + url);
+        if (errors.containsKey(url)){
+            Integer oldCount = errors.get(url);
+            errors.put(url, oldCount + 1);
+        }else {
+            errors.put(url, 1);
+        }
     }
 }

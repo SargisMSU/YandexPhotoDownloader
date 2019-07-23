@@ -7,15 +7,14 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
+import sun.rmi.runtime.Log;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Stack;
 
 public class HtmlParser {
 
-    public static LinkedList<String> parsePhotosURL(ChromeDriver driver, String request, int count, boolean mobileResolution){
+    public static LinkedList<String> parsePhotosURL(Settings params, ChromeDriver driver){
         LinkedList<String> urls = new LinkedList<>();
 
         //Искать только «request».
@@ -23,7 +22,7 @@ public class HtmlParser {
             WebElement misspell__message = driver.findElement(By.className("misspell__message"));
             List<WebElement> aElems = misspell__message.findElements(By.tagName("a"));
             for (WebElement aElem : aElems) {
-                if (aElem.getText().equals(request)) {
+                if (aElem.getText().equals(params.getRequest())) {
                     aElem.click();
                     Thread.sleep(2200);
                     break;
@@ -31,16 +30,14 @@ public class HtmlParser {
             }
         }catch (NoSuchElementException | InterruptedException ignored){
         }
-                                                                       //html/body/div[7]/div[1]/div[1]/div[1]/div/div/div[4]
-        int oldCountElements = 0;                                     //html/body/div[7]/div[1]/div[1]/div[1]/div/div
-        while (urls.size() < count * 2) {                             //html/body/div[7]/div[1]/div[1]/div[1]/div/div
+        int oldCountElements = 0;
+        while (urls.size() < params.getCount() * 2) {
             List<WebElement> elements;
-            if (mobileResolution) {
+            if (params.getWidth() < params.getHeight() ) {
                 elements = driver.findElements(By.xpath("/html/body/div[7]/div[1]/div[1]/div[1]/div/div/div/div"));
             }else {
                 elements = driver.findElements(By.xpath("/html/body/div[7]/div[1]/div[1]/div[1]/div/div"));
             }
-            System.out.println("elements.size() = " + elements.size());
             int startIndex = urls.size();
             for (int i = startIndex; i < elements.size(); i++) {
                 WebElement element = elements.get(i);
@@ -60,13 +57,16 @@ public class HtmlParser {
                         JSONObject jsonObject = new JSONObject(json);
                         JSONObject serpItem = jsonObject.getJSONObject("serp-item");
                         JSONArray preview = serpItem.getJSONArray("preview");
-                        String url = ((JSONObject) preview.get(0)).getString("url");
-                        urls.add(url);
+                        JSONObject origin = ((JSONObject) preview.get(0)).getJSONObject("origin");
+                        String url = origin.getString("url");
+                        if (!Settings.isFromBlackList(params.getBlackListSites(), url)) {
+                            urls.add(url);
+                        }
                     } catch (JSONException e) {
                         //e.printStackTrace();
                     }
                 }
-                if (urls.size() == count * 2) break;
+                if (urls.size() == params.getCount() * 2) break;
             }
 
             //если после скроллинга не появляются новые фотографии, то их больше нет.

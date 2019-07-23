@@ -48,16 +48,15 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static okhttp3.CipherSuite.*;
-
 public class Main extends Application {
 
     private CloseableHttpAsyncClient client;
     private CloseableHttpClient syncClient;
-    private Integer count, width, height;
-    private String request, url;
+    private Integer count;
+    private String request;
     private ChromeDriver driver;
     private Button btn;
+    private Settings params;
 
     public static void main(String[] args) {
         try {
@@ -104,16 +103,15 @@ public class Main extends Application {
         });
         primaryStage.show();
 
-        Settings params = new Settings("params.txt");
-        url = params.getUrl();
-        count = params.getCount();
-        width = params.getWidth();
-        height = params.getHeight();
+        params = new Settings("params.txt", "black_list.txt");
+
         request = params.getRequest();
+        count = params.getCount();
 
         TrustStrategy acceptingTrustStrategy = (certificate, authType) -> true;
         SSLContext sslContext = SSLContexts.custom()
                 .loadTrustMaterial(null, acceptingTrustStrategy).build();
+
         client = HttpAsyncClients.custom()
                 .setSSLHostnameVerifier(SSLConnectionSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER)
                 .disableAuthCaching()
@@ -123,11 +121,12 @@ public class Main extends Application {
                     .build())
                 .setSSLContext(sslContext).build();
         client.start();
+
         syncClient = HttpClients.createDefault();
 
 
         SeleniumHelper seleniumHelper = new SeleniumHelper();
-        seleniumHelper.openURL(url);
+        seleniumHelper.openURL(params.getUrl());
         driver = seleniumHelper.getDriver();
         btn.setDisable(false);
     }
@@ -135,7 +134,7 @@ public class Main extends Application {
     private void onClick() {
 
         new Thread(() -> {
-            LinkedList<String> urlsAll = HtmlParser.parsePhotosURL(driver, request, count, width < height);
+            LinkedList<String> urlsAll = HtmlParser.parsePhotosURL(params, driver);
             driver.quit();
 
             String directory = FilesUtils.createDirectory(request);
@@ -158,12 +157,7 @@ public class Main extends Application {
                     }catch (URISyntaxException e){
                         int index = e.getIndex();
                         String urlNew = urlSetK.substring(0, index) + URLEncoder.encode(urlSetK.substring(index));
-                        if (errorsMap.containsKey(urlNew)){
-                            Integer oldCount = errorsMap.get(urlNew);
-                            errorsMap.put(urlNew, oldCount + 1);
-                        }else {
-                            errorsMap.put(urlNew, 1);
-                        }
+                        FilesUtils.onFailed(urlNew, errorsMap);
                         countDownLatch.countDown();
                     } catch (Exception e){
                         e.printStackTrace();
